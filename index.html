@@ -1,0 +1,476 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI-Powered CSV Forecaster</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- DataTables dependencies -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.css">
+    <script src="https://code.jquery.com/jquery-3.7.0.js"></script>
+    <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "@google/genai": "https://esm.run/@google/genai"
+        }
+      }
+    </script>
+    <style>
+        .btn-primary {
+            background-color: #2563eb; /* bg-blue-600 */
+            color: white;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .btn-primary:hover {
+            background-color: #1d4ed8; /* bg-blue-700 */
+        }
+        .btn-primary:disabled {
+            background-color: #4b5563; /* bg-gray-600 */
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        .file-input-label {
+            cursor: pointer; padding: 0.75rem 1.5rem; border-radius: 0.5rem; background-color: #374151;
+            color: #d1d5db; transition: background-color 0.2s; border: 2px dashed #4b5563;
+            display: flex; align-items: center; justify-content: center; text-align: center;
+        }
+        .file-input-label:hover {
+            background-color: #4b5563; border-color: #6b7280;
+        }
+        #file-upload-input { display: none; }
+        .loader {
+            width: 48px; height: 48px; border: 5px solid #FFF; border-bottom-color: #2563eb;
+            border-radius: 50%; display: inline-block; box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+        .loader-sm {
+            width: 24px; height: 24px; border: 3px solid #FFF; border-bottom-color: #2563eb;
+            border-radius: 50%; display: inline-block; box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Datatables dark theme overrides */
+        .dataTables_wrapper .dataTables_length, .dataTables_wrapper .dataTables_filter, .dataTables_wrapper .dataTables_info, .dataTables_wrapper .dataTables_processing, .dataTables_wrapper .dataTables_paginate {
+            color: #9ca3af;
+        }
+        .dataTables_wrapper .dataTables_length select, .dataTables_wrapper .dataTables_filter input {
+            background-color: #374151; border: 1px solid #4b5563; color: white;
+        }
+        .dataTables_wrapper .dataTables_filter input { margin-left: 0.5rem; }
+        .dataTables_wrapper .dataTables_paginate .paginate_button { color: #9ca3af !important; border: 1px solid transparent; }
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current, .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+            background: #2563eb !important; border-color: #2563eb !important; color: white !important;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+            background: #4b5563 !important; border-color: #4b5563 !important; color: white !important;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button.disabled { color: #6b7280 !important; }
+        #table-output table.dataTable.no-footer { border-bottom: 1px solid #374151; }
+        #table-output table.dataTable thead th { border-bottom: 1px solid #4b5563; }
+        #table-output table { width: 100%; border-collapse: collapse; }
+        #table-output thead { background-color: #374151; }
+        #table-output th, #table-output td { padding: 0.75rem 1rem; }
+    </style>
+</head>
+<body class="bg-gray-900">
+    <div class="min-h-screen w-full bg-gray-900 text-white flex items-center justify-center p-4 sm:p-6 lg:p-8 font-sans">
+        <div class="w-full max-w-4xl mx-auto">
+            <header class="text-center mb-8">
+                <h1 class="text-4xl sm:text-5xl font-bold tracking-tight bg-gradient-to-r from-blue-400 to-teal-300 text-transparent bg-clip-text">
+                    AI-Powered CSV Forecaster
+                </h1>
+                <p class="mt-2 text-lg text-gray-400">
+                    Upload your CSV data to get an instant analysis, forecast, and visualization from a team of AI agents.
+                </p>
+            </header>
+
+            <div id="main-content" class="bg-gray-800/40 backdrop-blur-sm border border-gray-700/60 rounded-xl shadow-2xl p-4 sm:p-6">
+                <!-- Upload Section -->
+                <div id="upload-section">
+                    <div class="text-center">
+                        <h2 class="text-xl font-semibold text-gray-200 mb-4">Get Started</h2>
+                        <div class="max-w-xl mx-auto">
+                            <div class="mb-4">
+                                <label for="api-key-input" class="block text-sm font-medium text-gray-400 mb-1 text-left">Google Gemini API Key</label>
+                                <input type="password" id="api-key-input" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter your API key here">
+                            </div>
+                             <input type="file" id="file-upload-input" accept=".csv">
+                             <label for="file-upload-input" id="file-upload-label" class="file-input-label">
+                                 <span id="file-upload-text">Click to upload a CSV file</span>
+                             </label>
+                             
+                             <div class="my-6">
+                                <h3 class="text-lg font-medium text-gray-300 mb-3 text-left">Configuration</h3>
+                                <div class="space-y-4 text-left p-4 bg-gray-900/30 rounded-lg">
+                                     <div>
+                                        <label for="output-language" class="block text-sm font-medium text-gray-400">Output Language</label>
+                                        <select id="output-language" class="w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            <option value="English">English</option>
+                                            <option value="Spanish">Spanish</option>
+                                            <option value="French">French</option>
+                                            <option value="German">German</option>
+                                            <option value="Japanese">Japanese</option>
+                                            <option value="Mandarin Chinese">Mandarin Chinese</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="agent1-model" class="block text-sm font-medium text-gray-400">Agent 1 (Data & Table Generator)</label>
+                                        <select id="agent1-model" class="w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="agent2-model" class="block text-sm font-medium text-gray-400">Agent 2 (Forecasting Specialist)</label>
+                                        <select id="agent2-model" class="w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="agent3-model" class="block text-sm font-medium text-gray-400">Agent 3 (Reasoning Analyst)</label>
+                                        <select id="agent3-model" class="w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="agent4-model" class="block text-sm font-medium text-gray-400">Agent 4 (Reporting Analyst)</label>
+                                        <select id="agent4-model" class="w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                             <button id="analyze-btn" class="w-full mt-4 py-3 px-4 rounded-lg font-semibold btn-primary" disabled>Analyze Data</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Skeleton Loading Section -->
+                <div id="skeleton-section" class="hidden space-y-8">
+                    <div class="text-center mb-6">
+                        <div class="loader mx-auto"></div>
+                        <p id="loading-status-text" class="mt-4 text-lg text-gray-400">AI agents are assembling...</p>
+                    </div>
+                    <div class="space-y-8 animate-pulse">
+                        <div><div class="h-7 bg-gray-700 rounded w-48 mb-3"></div><div class="space-y-3"><div class="h-4 bg-gray-700 rounded w-full"></div><div class="h-4 bg-gray-700 rounded w-5/6"></div></div></div>
+                        <div><div class="h-7 bg-gray-700 rounded w-64 mb-3"></div><div class="h-48 bg-gray-700 rounded-lg"></div></div>
+                        <div><div class="h-7 bg-gray-700 rounded w-64 mb-3"></div><div class="h-96 bg-gray-700 rounded-lg"></div></div>
+                        <div><div class="h-7 bg-gray-700 rounded w-64 mb-3"></div><div class="space-y-3"><div class="h-4 bg-gray-700 rounded w-full"></div><div class="h-4 bg-gray-700 rounded w-3/4"></div></div></div>
+                    </div>
+                </div>
+
+                <!-- Results Section -->
+                <div id="results-section" class="hidden space-y-8" style="margin-top: 50px;">
+                     <div id="summary-container" class="hidden">
+                        <h3 class="text-2xl font-semibold text-gray-200 mb-3 border-b border-gray-700 pb-2">ERP Professional Summary</h3>
+                        <div id="summary-loader" class="flex items-center space-x-3 py-4">
+                            <div class="loader-sm"></div>
+                            <p class="text-gray-400">Agent 4 is crafting the final summary...</p>
+                        </div>
+                        <p id="summary-output" class="text-gray-300 whitespace-pre-wrap hidden"></p>
+                    </div>
+                     <div id="table-container" class="hidden">
+                        <div class="flex justify-between items-center border-b border-gray-700 pb-2 mb-3">
+                           <h3 class="text-2xl font-semibold text-gray-200">Data Table</h3>
+                           <button id="export-csv-btn" class="hidden text-sm bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1 px-3 rounded-lg transition-colors">Export to CSV</button>
+                        </div>
+                        <div id="table-output"></div>
+                    </div>
+                     <div id="chart-container" class="hidden">
+                        <h3 class="text-2xl font-semibold text-gray-200 mb-3 border-b border-gray-700 pb-2">Forecast Chart</h3>
+                        <div id="chart-loader" class="flex items-center justify-center h-96 flex-col">
+                            <div class="loader"></div>
+                            <p class="text-gray-400 mt-4">Agent 2 is generating the forecast...</p>
+                        </div>
+                        <div id="chart-wrapper" class="w-full h-96 hidden">
+                            <canvas id="forecast-chart"></canvas>
+                        </div>
+                    </div>
+                    <div id="rationale-container" class="hidden">
+                        <h3 class="text-2xl font-semibold text-gray-200 mb-3 border-b border-gray-700 pb-2">Forecast Rationale</h3>
+                        <div id="rationale-loader" class="flex items-center space-x-3 py-4">
+                             <div class="loader-sm"></div>
+                             <p class="text-gray-400">Agent 3 is analyzing the forecast logic...</p>
+                        </div>
+                        <p id="rationale-output" class="text-gray-300 whitespace-pre-wrap hidden"></p>
+                    </div>
+                </div>
+            </div>
+            
+            <footer class="text-center mt-8 text-gray-500 text-sm">
+                <p>Analysis and forecasts are generated by AI and may not be perfect. Use for demonstration purposes.</p>
+            </footer>
+        </div>
+    </div>
+    <script type="module">
+        import { GoogleGenAI, Type } from "@google/genai";
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const apiKeyInput = document.getElementById('api-key-input');
+            const fileUploadInput = document.getElementById('file-upload-input');
+            const fileUploadLabelText = document.getElementById('file-upload-text');
+            const analyzeBtn = document.getElementById('analyze-btn');
+            const exportCsvBtn = document.getElementById('export-csv-btn');
+            const outputLanguageSelect = document.getElementById('output-language');
+            
+            const agent1ModelSelect = document.getElementById('agent1-model');
+            const agent2ModelSelect = document.getElementById('agent2-model');
+            const agent3ModelSelect = document.getElementById('agent3-model');
+            const agent4ModelSelect = document.getElementById('agent4-model');
+            
+            const uploadSection = document.getElementById('upload-section');
+            const skeletonSection = document.getElementById('skeleton-section');
+            const loadingStatusText = document.getElementById('loading-status-text');
+            const resultsSection = document.getElementById('results-section');
+
+            const summaryContainer = document.getElementById('summary-container');
+            const tableContainer = document.getElementById('table-container');
+            const chartContainer = document.getElementById('chart-container');
+            const rationaleContainer = document.getElementById('rationale-container');
+
+            const summaryOutput = document.getElementById('summary-output');
+            const tableOutput = document.getElementById('table-output');
+            const rationaleOutput = document.getElementById('rationale-output');
+            const chartCanvas = document.getElementById('forecast-chart');
+
+            const summaryLoader = document.getElementById('summary-loader');
+            const chartLoader = document.getElementById('chart-loader');
+            const rationaleLoader = document.getElementById('rationale-loader');
+            const chartWrapper = document.getElementById('chart-wrapper');
+
+            let csvData = null;
+            let forecastChart = null;
+            let dataTableInstance = null;
+            let fullChartDataForExport = null;
+            
+            const updateButtonState = () => {
+                const hasFile = !!csvData;
+                const hasApiKey = apiKeyInput.value.trim() !== '';
+                analyzeBtn.disabled = !(hasFile && hasApiKey);
+            };
+
+            const initChart = () => {
+                if (forecastChart) forecastChart.destroy();
+                forecastChart = new Chart(chartCanvas, {
+                    type: 'line', data: { labels: [], datasets: [] },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: { labels: { color: '#A0AEC0', font: { size: 14 }}},
+                            tooltip: {
+                                enabled: true, backgroundColor: 'rgba(17, 24, 39, 0.8)',
+                                borderColor: '#4A5568', borderWidth: 1, padding: 12,
+                                titleColor: '#E5E7EB', bodyColor: '#D1D5DB',
+                                callbacks: { label: (c) => `${c.dataset.label}: ${new Intl.NumberFormat('en-US').format(c.parsed.y)}` }
+                            }
+                        },
+                        scales: {
+                            x: { grid: { color: 'rgba(74, 85, 104, 0.5)' }, ticks: { color: '#A0AEC0' }},
+                            y: { border: { display: false }, grid: { color: 'rgba(74, 85, 104, 0.5)' }, ticks: { color: '#A0AEC0' }}
+                        }
+                    }
+                });
+            };
+
+            fileUploadInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file && file.type === "text/csv") {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        csvData = event.target.result;
+                        fileUploadLabelText.textContent = file.name;
+                        updateButtonState();
+                    };
+                    reader.readAsText(file);
+                } else {
+                    csvData = null;
+                    fileUploadLabelText.textContent = "Please select a valid .csv file";
+                    updateButtonState();
+                }
+            });
+            
+            apiKeyInput.addEventListener('input', updateButtonState);
+
+            const callAgent = async (ai, model, prompt, schema) => {
+                const response = await ai.models.generateContent({
+                    model: model,
+                    contents: prompt,
+                    config: { responseMimeType: "application/json", responseSchema: schema },
+                });
+                return JSON.parse(response.text);
+            };
+
+            const agent1_processAndTable = async (ai, rawCsv, model) => {
+                loadingStatusText.textContent = `Agent 1 (${model}): Generating Table...`;
+                const schema = {
+                    type: Type.OBJECT, properties: {
+                        tableHtml: { type: Type.STRING, description: "An HTML string representing the cleaned data in a table. The table MUST have an id='data-table-interactive' and include <thead> and <tbody> elements. Style it with these TailwindCSS classes: table with 'w-full text-sm text-left text-gray-400', thead with 'text-xs text-gray-300 uppercase bg-gray-700', and tbody tr with 'border-b border-gray-700'." },
+                        cleanedData: { type: Type.OBJECT, properties: { labels: { type: Type.ARRAY, items: { type: Type.STRING } }, values: { type: Type.ARRAY, items: { type: Type.NUMBER } }, }, required: ['labels', 'values'] },
+                    }, required: ['tableHtml', 'cleanedData']
+                };
+                const prompt = `You are a data processing and reporting agent. Your job is to take raw CSV data and perform two tasks: 1. Clean the data by identifying the primary date/time column and the primary numerical value column. 2. Generate a well-formatted HTML table of this cleaned data. You must return both the cleaned data in JSON format and the HTML table string.\n\n--- CSV DATA ---\n${rawCsv}`;
+                return await callAgent(ai, model, prompt, schema);
+            };
+
+            const agent2_createForecast = async (ai, cleanedData, model) => {
+                const schema = { type: Type.OBJECT, properties: { forecast: { type: Type.ARRAY, items: { type: Type.NUMBER }, description: "An array of forecasted numerical values for the next 30 periods."} }, required: ['forecast'] };
+                const prompt = `You are a forecasting specialist. Given this cleaned time-series data, generate a 30-period forecast. **CRITICAL INSTRUCTION**: The very first value of your forecast array MUST be identical to the last value of the provided 'values' array (${cleanedData.values[cleanedData.values.length - 1]}). This ensures the forecast line on the chart connects perfectly to the actual data line. Do not fail this instruction.\n\n--- CLEANED DATA ---\n${JSON.stringify(cleanedData)}`;
+                return await callAgent(ai, model, prompt, schema);
+            };
+
+            const agent3_explainForecast = async (ai, cleanedData, forecastData, model, language) => {
+                const schema = { type: Type.OBJECT, properties: { rationale: { type: Type.STRING, description: `A concise, easy-to-understand paragraph explaining the logic behind the forecast in ${language}. Analyze the historical data's trends (e.g., growth, seasonality, recent dips or spikes) and explain how the forecast is a logical extension of these patterns.` } }, required: ['rationale'] };
+                const prompt = `You are a data reasoning analyst. Your job is to explain the forecast shown on the chart. Analyze the historical data's trends (e.g., growth, seasonality) and explain how the forecast line is a logical extension of these patterns, as if you were explaining the chart to a manager. Your entire response must be in ${language}.\n\n--- HISTORICAL DATA ---\n${JSON.stringify(cleanedData)}\n\n--- FORECAST DATA ---\n${JSON.stringify(forecastData)}`;
+                return await callAgent(ai, model, prompt, schema);
+            };
+            
+            const agent4_generateSummary = async (ai, cleanedData, forecastData, rationale, model, language) => {
+                const schema = { type: Type.OBJECT, properties: { summary: { type: Type.STRING, description: `A final, one-paragraph executive summary in ${language}. Combine the historical trends, the forecast projection, and the rationale behind the forecast into a single, cohesive narrative for a business audience.` } }, required: ['summary'] };
+                const prompt = `You are a senior ERP Professional reporting analyst. You have been provided with the data for a table and a forecast chart. Your task is to write a powerful, integrated executive summary suitable for an ERP system report. Synthesize the key trends from the table and the projections from the chart, incorporating the forecast's reasoning, into a single, cohesive, professional narrative. Your entire response must be in ${language}.\n\n--- DATA FOR TABLE ---\n${JSON.stringify(cleanedData)}\n\n--- DATA FOR CHART ---\n${JSON.stringify(forecastData)}\n\n--- FORECAST RATIONALE ---\n${rationale}`;
+                return await callAgent(ai, model, prompt, schema);
+            };
+
+            const exportToCsv = () => {
+                if (!fullChartDataForExport) return;
+                let csvContent = `"Label","Actual","Forecast"\n`;
+                fullChartDataForExport.labels.forEach((label, index) => {
+                    const actual = fullChartDataForExport.actualData[index] ?? '';
+                    const forecast = fullChartDataForExport.forecastData[index] ?? '';
+                    if (actual !== '' || forecast !== '') {
+                        csvContent += `"${label}","${actual}","${forecast}"\n`;
+                    }
+                });
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", "forecast_data.csv");
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            };
+            exportCsvBtn.addEventListener('click', exportToCsv);
+
+            analyzeBtn.addEventListener('click', async () => {
+                const apiKey = apiKeyInput.value.trim();
+                const language = outputLanguageSelect.value;
+                if (!csvData || !apiKey) return;
+
+                // --- PHASE 1: SETUP ---
+                uploadSection.classList.add('hidden');
+                resultsSection.classList.add('hidden');
+                skeletonSection.classList.remove('hidden');
+
+                // Reset UI state from previous runs
+                if (dataTableInstance) {
+                    dataTableInstance.destroy();
+                    dataTableInstance = null;
+                }
+                tableOutput.innerHTML = "";
+                exportCsvBtn.classList.add('hidden');
+                fullChartDataForExport = null;
+                
+                // Hide all result content and show loaders
+                [summaryContainer, tableContainer, chartContainer, rationaleContainer].forEach(c => c.classList.add('hidden'));
+                
+                summaryOutput.classList.add('hidden');
+                summaryLoader.classList.remove('hidden');
+
+                chartWrapper.classList.add('hidden');
+                chartLoader.classList.remove('hidden');
+
+                rationaleOutput.classList.add('hidden');
+                rationaleLoader.classList.remove('hidden');
+
+                loadingStatusText.textContent = 'Agent 1 is processing and cleaning your data...';
+
+                try {
+                    const ai = new GoogleGenAI({ apiKey: apiKey });
+                    const [model1, model2, model3, model4] = [agent1ModelSelect.value, agent2ModelSelect.value, agent3ModelSelect.value, agent4ModelSelect.value];
+                    
+                    // --- PHASE 2: AGENT 1 (TABLE) ---
+                    const agent1_result = await agent1_processAndTable(ai, csvData, model1);
+                    const cleanedData = agent1_result.cleanedData;
+                    
+                    // UI Update after Agent 1
+                    skeletonSection.classList.add('hidden');
+                    resultsSection.classList.remove('hidden');
+                    
+                    tableContainer.classList.remove('hidden');
+                    tableOutput.innerHTML = agent1_result.tableHtml;
+                    dataTableInstance = $('#data-table-interactive').DataTable({ "pageLength": 10, "destroy": true });
+                    
+                    // Reveal other containers with loaders
+                    chartContainer.classList.remove('hidden');
+                    rationaleContainer.classList.remove('hidden');
+                    summaryContainer.classList.remove('hidden');
+
+                    // --- PHASE 3: AGENT 2 (FORECAST) ---
+                    const agent2_result = await agent2_createForecast(ai, cleanedData, model2);
+                    const forecastData = agent2_result.forecast;
+                    
+                    // UI Update after Agent 2
+                    const forecastDisplayData = new Array(cleanedData.values.length - 1).fill(null).concat(forecastData);
+                    const futureLabels = [...cleanedData.labels];
+                    for (let i = 1; i < forecastData.length; i++) {
+                        futureLabels.push(`Forecast ${i}`);
+                    }
+                    fullChartDataForExport = { labels: futureLabels, actualData: cleanedData.values, forecastData: forecastDisplayData };
+                    updateChart(fullChartDataForExport);
+                    
+                    chartLoader.classList.add('hidden');
+                    chartWrapper.classList.remove('hidden');
+                    exportCsvBtn.classList.remove('hidden');
+
+                    // --- PHASE 4: AGENT 3 (RATIONALE) ---
+                    const agent3_result = await agent3_explainForecast(ai, cleanedData, forecastData, model3, language);
+                    
+                    // UI Update after Agent 3
+                    rationaleOutput.textContent = agent3_result.rationale;
+                    rationaleLoader.classList.add('hidden');
+                    rationaleOutput.classList.remove('hidden');
+
+                    // --- PHASE 5: AGENT 4 (SUMMARY) ---
+                    const agent4_result = await agent4_generateSummary(ai, cleanedData, forecastData, agent3_result.rationale, model4, language);
+                    
+                    // UI Update after Agent 4
+                    summaryOutput.textContent = agent4_result.summary;
+                    summaryLoader.classList.add('hidden');
+                    summaryOutput.classList.remove('hidden');
+
+                    // --- PHASE 6: FINAL CLEANUP ---
+                    uploadSection.classList.remove('hidden');
+
+                } catch (error) {
+                    console.error("Error during multi-agent analysis:", error);
+                    alert("An error occurred. Check the console and verify your API key and data.");
+                    resultsSection.classList.add('hidden'); 
+                    uploadSection.classList.remove('hidden'); 
+                } finally {
+                    skeletonSection.classList.add('hidden');
+                }
+            });
+            
+            const updateChart = (chartData) => {
+                forecastChart.data.labels = chartData.labels;
+                forecastChart.data.datasets = [{
+                    label: 'Actual', data: chartData.actualData, borderColor: '#38B2AC', backgroundColor: '#38B2AC',
+                    tension: 0.4, pointRadius: 0, pointHoverRadius: 6,
+                }, {
+                    label: 'Forecast', data: chartData.forecastData, borderColor: '#4299E1', backgroundColor: '#4299E1',
+                    borderDash: [5, 5], tension: 0.4, pointRadius: 0, pointHoverRadius: 6,
+                }];
+                forecastChart.update();
+            };
+            
+            initChart();
+        });
+    </script>
+</body>
+</html>
