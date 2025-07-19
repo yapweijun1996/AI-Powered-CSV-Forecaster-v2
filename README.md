@@ -62,3 +62,11 @@ This approach allows each AI to focus on what it does best, leading to a higher-
 -   **DataTables.js:** For the interactive data table.
 -   **Marked.js:** For rendering the final summary (which is written in Markdown).
 -   **simple-statistics:** For the initial, basic statistical forecast.
+
+## Demo
+
+https://yapweijun1996.github.io/AI-Powered-CSV-Forecaster-v2/
+
+## Preview
+
+<img width="893" height="736" alt="Screenshot 2025-07-19 at 9 21 48 PM" src="https://github.com/user-attachments/assets/83a018da-ab57-48ac-a569-819cb2e795d5" />
