@@ -1,45 +1,30 @@
-# Project Context: AI-Powered CSV Forecaster
+# AI-Powered CSV Forecaster Context
 
-## 1. Project Overview
+This project is an AI-powered CSV data analysis and forecasting tool designed to provide instant insights, forecasts, and visualizations from uploaded CSV files. It leverages a team of specialized AI agents, each with a distinct role, to process data, generate forecasts, explain reasoning, and produce executive summaries.
 
-This is a single-page web application built with vanilla HTML, CSS, and JavaScript (`index.html`). The application serves as an "AI-Powered CSV Forecaster."
+## AI Agents and Their Roles
 
-**Core Functionality:**
-- Users upload a CSV file containing time-series data.
-- Users provide their Google Gemini API key.
-- The application processes the data through a pipeline of four specialized AI agents to produce an analysis, forecast, and summary.
+- **Agent 1 (Data & Table Generator):**  
+  A professional ERP data specialist responsible for cleaning raw CSV data by accurately identifying the primary date/time and numerical value columns. Generates a well-formatted, accessible HTML table adhering to enterprise UI standards.
 
-**Technologies Used:**
-- **Frontend:** HTML, Tailwind CSS
-- **JavaScript:** Vanilla JS (ES Modules), Chart.js (for charts), jQuery/DataTables (for tables)
-- **AI:** Google Gemini API
+- **Agent 2 (Forecasting Specialist):**  
+  A professional forecasting expert who rigorously evaluates and refines initial statistical forecasts based on historical data. Ensures forecasts are analytically sound, align with business trends, and produce realistic, data-driven projections.
 
-## 2. Current AI Agent Logic
+- **Agent 3 (Reasoning Analyst):**  
+  A professional data reasoning analyst who provides clear, concise, and authoritative explanations of forecast logic. Analyzes trends such as growth, seasonality, and anomalies, delivering insights suitable for senior management.
 
-The application employs a multi-agent system where data is passed sequentially:
+- **Agent 4 (Reporting Analyst):**  
+  A senior ERP professional reporting analyst tasked with synthesizing data tables, forecasts, and rationale into a polished, cohesive executive summary. The summary is designed for high-level ERP system reports and actionable business insights.
 
-- **Agent 1 (Data & Table Generator):** Takes the raw CSV, cleans it, and outputs both clean JSON data and an HTML table for display.
-- **Agent 2 (Forecasting Specialist):** Takes the clean JSON data and generates a 30-period forecast.
-- **Agent 3 (Reasoning Analyst):** Takes the historical and forecast data and generates a rationale explaining the forecast.
-- **Agent 4 (Reporting Analyst):** Takes all the data and the rationale to create a final executive summary.
+## Technical Details
 
-## 3. User's Goal: Refine Agent Logic
+- Uses Google Gemini API for AI model interactions.
+- Employs Chart.js for data visualization with dual charts: statistical forecast and AI-validated forecast.
+- Implements client-side statistical forecasting using simple-statistics linear regression.
+- Utilizes IndexedDB for API key persistence.
+- Provides interactive data tables with DataTables.js.
+- Supports multiple output languages for AI-generated content.
 
-The user wants to align the agent workflow with a more intuitive, human-like analytical process. The desired flow is as follows:
+## Professionalism and Context Engineering
 
-1.  **CSV -> Generate Table:** The initial CSV is used to generate a data table.
-2.  **Table -> Generate Forecast Chart:** The generated table is used as the basis for creating a forecast chart.
-3.  **Chart -> Generate Forecast Explanation:** The generated chart is analyzed to produce an explanation of the forecast.
-4.  **Table + Chart -> Generate ERP Pro Summary:** A final, powerful summary is created by synthesizing information from both the table and the chart.
-
-## 4. Proposed Implementation Plan
-
-The current system is efficient because it passes structured JSON data between agents rather than having them parse visual HTML tables or chart images.
-
-To meet the user's goal without sacrificing this efficiency, the plan is to **modify the prompts** of the agents to make them "act" as if they are analyzing the visual components.
-
-**Specific Change:**
-- **Modify Agent 4's Prompt:** The prompt for the final agent will be updated to explicitly state that it should analyze the "provided data table and forecast chart" to generate its "powerful ERP pro summary."
-- **Data Framing:** The data sent to Agent 4 will be structured to reinforce this framing (e.g., labeling the data as `dataForTable` and `dataForChart`).
-
-This approach aligns the agent's behavior and output with the user's vision while maintaining the robust, data-driven backend.
+The AI agent prompts have been carefully engineered to reflect professional personas typical of staff at leading ERP companies. This ensures outputs are precise, rigorous, and business-appropriate, enhancing the credibility and usefulness of the forecasts and reports generated.

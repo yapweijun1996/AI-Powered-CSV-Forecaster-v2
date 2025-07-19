@@ -7,6 +7,7 @@
     <title>AI-Powered CSV Forecaster</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/simple-statistics@7.7.4/dist/simple-statistics.min.js"></script>
     <!-- DataTables dependencies -->
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.css">
     <script src="https://code.jquery.com/jquery-3.7.0.js"></script>
@@ -181,13 +182,23 @@
                         <div id="table-output"></div>
                     </div>
                      <div id="chart-container" class="hidden">
-                        <h3 class="text-2xl font-semibold text-gray-200 mb-3 border-b border-gray-700 pb-2">Forecast Chart</h3>
-                        <div id="chart-loader" class="flex items-center justify-center h-96 flex-col">
+                        <h3 class="text-2xl font-semibold text-gray-200 mb-3 border-b border-gray-700 pb-2">Statistical Forecast Chart</h3>
+                        <div id="stat-chart-loader" class="flex items-center justify-center h-96 flex-col">
                             <div class="loader"></div>
-                            <p class="text-gray-400 mt-4">Agent 2 is generating the forecast...</p>
+                            <p class="text-gray-400 mt-4">Generating statistical forecast chart...</p>
                         </div>
-                        <div id="chart-wrapper" class="w-full h-96 hidden">
-                            <canvas id="forecast-chart"></canvas>
+                        <div id="stat-chart-wrapper" class="w-full h-96 hidden">
+                            <canvas id="stat-forecast-chart"></canvas>
+                        </div>
+                    </div>
+                    <div id="ai-chart-container" class="hidden mt-8">
+                        <h3 class="text-2xl font-semibold text-gray-200 mb-3 border-b border-gray-700 pb-2">AI-Validated Forecast Chart</h3>
+                        <div id="ai-chart-loader" class="flex items-center justify-center h-96 flex-col">
+                            <div class="loader"></div>
+                            <p class="text-gray-400 mt-4">Generating AI-validated forecast chart...</p>
+                        </div>
+                        <div id="ai-chart-wrapper" class="w-full h-96 hidden">
+                            <canvas id="ai-forecast-chart"></canvas>
                         </div>
                     </div>
                     <div id="rationale-container" class="hidden">
@@ -209,6 +220,39 @@
     <script type="module">
         import { GoogleGenAI, Type } from "@google/genai";
 
+// IndexedDB setup for API key persistence
+const DB_NAME = 'gemini_api_db';
+const STORE_NAME = 'api_keys';
+
+function openDb() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, 1);
+        request.onupgradeneeded = () => {
+            request.result.createObjectStore(STORE_NAME, { keyPath: 'id' });
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+function getApiKey() {
+    return openDb().then(db => new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const getReq = store.get(1);
+        getReq.onsuccess = () => resolve(getReq.result?.key || '');
+        getReq.onerror = () => reject(getReq.error);
+    }));
+}
+
+function saveApiKey(key) {
+    openDb().then(db => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        store.put({ id: 1, key });
+    }).catch(console.error);
+}
+
         document.addEventListener('DOMContentLoaded', () => {
             const apiKeyInput = document.getElementById('api-key-input');
             const fileUploadInput = document.getElementById('file-upload-input');
@@ -229,23 +273,27 @@
 
             const summaryContainer = document.getElementById('summary-container');
             const tableContainer = document.getElementById('table-container');
-            const chartContainer = document.getElementById('chart-container');
+            const statChartContainer = document.getElementById('chart-container'); // Renamed from chart-container
+            const aiChartContainer = document.getElementById('ai-chart-container'); // New AI chart container
             const rationaleContainer = document.getElementById('rationale-container');
 
             const summaryOutput = document.getElementById('summary-output');
             const tableOutput = document.getElementById('table-output');
             const rationaleOutput = document.getElementById('rationale-output');
-            const chartCanvas = document.getElementById('forecast-chart');
+            const statChartCanvas = document.getElementById('stat-forecast-chart'); // Renamed from forecast-chart
+            const aiChartCanvas = document.getElementById('ai-forecast-chart'); // New AI chart canvas
 
             const summaryLoader = document.getElementById('summary-loader');
-            const chartLoader = document.getElementById('chart-loader');
+            const statChartLoader = document.getElementById('stat-chart-loader'); // Renamed from chart-loader
+            const aiChartLoader = document.getElementById('ai-chart-loader'); // New AI chart loader
             const rationaleLoader = document.getElementById('rationale-loader');
-            const chartWrapper = document.getElementById('chart-wrapper');
+            const statChartWrapper = document.getElementById('stat-chart-wrapper'); // Renamed from chart-wrapper
+            const aiChartWrapper = document.getElementById('ai-chart-wrapper'); // New AI chart wrapper
 
             let csvData = null;
-            let forecastChart = null;
             let dataTableInstance = null;
-            let fullChartDataForExport = null;
+            let fullChartDataForExport = null; // This will now be for the AI-validated chart
+            let statChartDataForExport = null; // New variable for statistical chart export
             
             const updateButtonState = () => {
                 const hasFile = !!csvData;
@@ -294,7 +342,14 @@
                 }
             });
             
-            apiKeyInput.addEventListener('input', updateButtonState);
+            apiKeyInput.addEventListener('input', (e) => {
+    saveApiKey(e.target.value);
+    updateButtonState();
+});
+getApiKey().then(key => {
+    if (key) apiKeyInput.value = key;
+    updateButtonState();
+}).catch(console.error);
 
             const callAgent = async (ai, model, prompt, schema) => {
                 const response = await ai.models.generateContent({
@@ -305,35 +360,49 @@
                 return JSON.parse(response.text);
             };
 
-            const agent1_processAndTable = async (ai, rawCsv, model) => {
-                loadingStatusText.textContent = `Agent 1 (${model}): Generating Table...`;
-                const schema = {
-                    type: Type.OBJECT, properties: {
-                        tableHtml: { type: Type.STRING, description: "An HTML string representing the cleaned data in a table. The table MUST have an id='data-table-interactive' and include <thead> and <tbody> elements. Style it with these TailwindCSS classes: table with 'w-full text-sm text-left text-gray-400', thead with 'text-xs text-gray-300 uppercase bg-gray-700', and tbody tr with 'border-b border-gray-700'." },
-                        cleanedData: { type: Type.OBJECT, properties: { labels: { type: Type.ARRAY, items: { type: Type.STRING } }, values: { type: Type.ARRAY, items: { type: Type.NUMBER } }, }, required: ['labels', 'values'] },
-                    }, required: ['tableHtml', 'cleanedData']
-                };
-                const prompt = `You are a data processing and reporting agent. Your job is to take raw CSV data and perform two tasks: 1. Clean the data by identifying the primary date/time column and the primary numerical value column. 2. Generate a well-formatted HTML table of this cleaned data. You must return both the cleaned data in JSON format and the HTML table string.\n\n--- CSV DATA ---\n${rawCsv}`;
-                return await callAgent(ai, model, prompt, schema);
-            };
+function generateStatisticalForecast(cleanedData) {
+    const dataPoints = cleanedData.values.map((y, i) => [i, y]);
+    const regression = ss.linearRegression(dataPoints);
+    const regressionLine = ss.linearRegressionLine(regression);
+    const forecast = [];
+    for (let i = 0; i < 30; i++) {
+        forecast.push(i === 0
+            ? cleanedData.values[cleanedData.values.length - 1]
+            : regressionLine(cleanedData.values.length + i - 1)
+        );
+    }
+    return forecast;
+}
 
-            const agent2_createForecast = async (ai, cleanedData, model) => {
-                const schema = { type: Type.OBJECT, properties: { forecast: { type: Type.ARRAY, items: { type: Type.NUMBER }, description: "An array of forecasted numerical values for the next 30 periods."} }, required: ['forecast'] };
-                const prompt = `You are a forecasting specialist. Given this cleaned time-series data, generate a 30-period forecast. **CRITICAL INSTRUCTION**: The very first value of your forecast array MUST be identical to the last value of the provided 'values' array (${cleanedData.values[cleanedData.values.length - 1]}). This ensures the forecast line on the chart connects perfectly to the actual data line. Do not fail this instruction.\n\n--- CLEANED DATA ---\n${JSON.stringify(cleanedData)}`;
-                return await callAgent(ai, model, prompt, schema);
-            };
+const agent1_processAndTable = async (ai, rawCsv, model) => {
+    loadingStatusText.textContent = `Agent 1 (${model}): Generating Table...`;
+    const schema = {
+        type: Type.OBJECT, properties: {
+            tableHtml: { type: Type.STRING, description: "An HTML string representing the cleaned data in a table. The table MUST have an id='data-table-interactive' and include <thead> and <tbody> elements. Style it with these TailwindCSS classes: table with 'w-full text-sm text-left text-gray-400', thead with 'text-xs text-gray-300 uppercase bg-gray-700', and tbody tr with 'border-b border-gray-700'." },
+            cleanedData: { type: Type.OBJECT, properties: { labels: { type: Type.ARRAY, items: { type: Type.STRING } }, values: { type: Type.ARRAY, items: { type: Type.NUMBER } }, }, required: ['labels', 'values'] },
+        }, required: ['tableHtml', 'cleanedData']
+    };
+    const prompt = `You are a professional ERP data specialist at a leading enterprise software company. Your responsibility is to process raw CSV data with precision and rigor. Perform the following tasks: 1. Clean the data by accurately identifying the primary date/time column and the primary numerical value column, ensuring data integrity and consistency. 2. Generate a well-formatted, accessible, and visually clear HTML table of this cleaned data, adhering to enterprise UI standards. Return both the cleaned data in JSON format and the HTML table string.\n\n--- CSV DATA ---\n${rawCsv}`;
+    return await callAgent(ai, model, prompt, schema);
+};
 
-            const agent3_explainForecast = async (ai, cleanedData, forecastData, model, language) => {
-                const schema = { type: Type.OBJECT, properties: { rationale: { type: Type.STRING, description: `A concise, easy-to-understand paragraph explaining the logic behind the forecast in ${language}. Analyze the historical data's trends (e.g., growth, seasonality, recent dips or spikes) and explain how the forecast is a logical extension of these patterns.` } }, required: ['rationale'] };
-                const prompt = `You are a data reasoning analyst. Your job is to explain the forecast shown on the chart. Analyze the historical data's trends (e.g., growth, seasonality) and explain how the forecast line is a logical extension of these patterns, as if you were explaining the chart to a manager. Your entire response must be in ${language}.\n\n--- HISTORICAL DATA ---\n${JSON.stringify(cleanedData)}\n\n--- FORECAST DATA ---\n${JSON.stringify(forecastData)}`;
-                return await callAgent(ai, model, prompt, schema);
-            };
+            const agent2_validateForecast = async (ai, cleanedData, statisticalForecast, model) => {
+    const schema = { type: Type.OBJECT, properties: { forecast: { type: Type.ARRAY, items: { type: Type.NUMBER }, description: "An array of AI-validated forecasted numerical values for the next 30 periods." } }, required: ['forecast'] };
+    const prompt = `You are a professional forecasting specialist at a leading ERP company. Your task is to rigorously evaluate and refine the provided initial statistical forecast based on the historical data. Ensure the forecast is analytically sound, aligns with business trends, and the first forecast value exactly matches the last actual data point (${cleanedData.values[cleanedData.values.length - 1]}). Return a 30-period forecast array that reflects a realistic and data-driven projection.\n\n--- HISTORICAL DATA ---\n${JSON.stringify(cleanedData)}\n\n--- INITIAL STATISTICAL FORECAST ---\n${JSON.stringify(statisticalForecast)}`;
+    return await callAgent(ai, model, prompt, schema);
+};
+
+const agent3_explainForecast = async (ai, cleanedData, forecastData, model, language) => {
+    const schema = { type: Type.OBJECT, properties: { rationale: { type: Type.STRING, description: `A concise, easy-to-understand paragraph explaining the logic behind the forecast in ${language}. Analyze the historical data's trends (e.g., growth, seasonality, recent dips or spikes) and explain how the forecast is a logical extension of these patterns.` } }, required: ['rationale'] };
+    const prompt = `You are a professional data reasoning analyst at a leading ERP company. Your task is to provide a clear, concise, and authoritative explanation of the forecast shown on the chart. Analyze the historical data's trends (e.g., growth, seasonality, recent dips or spikes) and explain how the forecast line logically extends these patterns, suitable for presentation to senior management. Your entire response must be in ${language}.\n\n--- HISTORICAL DATA ---\n${JSON.stringify(cleanedData)}\n\n--- FORECAST DATA ---\n${JSON.stringify(forecastData)}`;
+    return await callAgent(ai, model, prompt, schema);
+};
             
-            const agent4_generateSummary = async (ai, cleanedData, forecastData, rationale, model, language) => {
-                const schema = { type: Type.OBJECT, properties: { summary: { type: Type.STRING, description: `A final, one-paragraph executive summary in ${language}. Combine the historical trends, the forecast projection, and the rationale behind the forecast into a single, cohesive narrative for a business audience.` } }, required: ['summary'] };
-                const prompt = `You are a senior ERP Professional reporting analyst. You have been provided with the data for a table and a forecast chart. Your task is to write a powerful, integrated executive summary suitable for an ERP system report. Synthesize the key trends from the table and the projections from the chart, incorporating the forecast's reasoning, into a single, cohesive, professional narrative. Your entire response must be in ${language}.\n\n--- DATA FOR TABLE ---\n${JSON.stringify(cleanedData)}\n\n--- DATA FOR CHART ---\n${JSON.stringify(forecastData)}\n\n--- FORECAST RATIONALE ---\n${rationale}`;
-                return await callAgent(ai, model, prompt, schema);
-            };
+const agent4_generateSummary = async (ai, cleanedData, forecastData, rationale, model, language) => {
+    const schema = { type: Type.OBJECT, properties: { summary: { type: Type.STRING, description: `A final, one-paragraph executive summary in ${language}. Combine the historical trends, the forecast projection, and the rationale behind the forecast into a single, cohesive narrative for a business audience.` } }, required: ['summary'] };
+    const prompt = `You are a senior ERP professional reporting analyst at a top-tier enterprise software company. Your responsibility is to analyze the provided data table and forecast chart to craft a powerful, integrated executive summary suitable for high-level ERP system reports. Synthesize the key trends observed in the table and the projections from the chart, incorporating the forecast's reasoning, into a single, cohesive, polished, and professional narrative that is actionable for business stakeholders. Your entire response must be in ${language}.\n\n--- DATA FOR TABLE ---\n${JSON.stringify(cleanedData)}\n\n--- DATA FOR CHART ---\n${JSON.stringify(forecastData)}\n\n--- FORECAST RATIONALE ---\n${rationale}`;
+    return await callAgent(ai, model, prompt, schema);
+};
 
             const exportToCsv = () => {
                 if (!fullChartDataForExport) return;
@@ -377,13 +446,15 @@
                 fullChartDataForExport = null;
                 
                 // Hide all result content and show loaders
-                [summaryContainer, tableContainer, chartContainer, rationaleContainer].forEach(c => c.classList.add('hidden'));
+                [summaryContainer, tableContainer, statChartContainer, aiChartContainer, rationaleContainer].forEach(c => c.classList.add('hidden'));
                 
                 summaryOutput.classList.add('hidden');
                 summaryLoader.classList.remove('hidden');
 
-                chartWrapper.classList.add('hidden');
-                chartLoader.classList.remove('hidden');
+                statChartWrapper.classList.add('hidden');
+                statChartLoader.classList.remove('hidden');
+                aiChartWrapper.classList.add('hidden');
+                aiChartLoader.classList.remove('hidden');
 
                 rationaleOutput.classList.add('hidden');
                 rationaleLoader.classList.remove('hidden');
@@ -407,37 +478,49 @@
                     dataTableInstance = $('#data-table-interactive').DataTable({ "pageLength": 10, "destroy": true });
                     
                     // Reveal other containers with loaders
-                    chartContainer.classList.remove('hidden');
+                    statChartContainer.classList.remove('hidden');
+                    aiChartContainer.classList.remove('hidden');
                     rationaleContainer.classList.remove('hidden');
                     summaryContainer.classList.remove('hidden');
 
-                    // --- PHASE 3: AGENT 2 (FORECAST) ---
-                    const agent2_result = await agent2_createForecast(ai, cleanedData, model2);
-                    const forecastData = agent2_result.forecast;
-                    
-                    // UI Update after Agent 2
-                    const forecastDisplayData = new Array(cleanedData.values.length - 1).fill(null).concat(forecastData);
+                    // --- PHASE 3: STATISTICAL FORECAST ---
+                    loadingStatusText.textContent = `Generating statistical forecast...`;
+                    const statisticalForecast = generateStatisticalForecast(cleanedData);
+                    const statForecastDisplayData = new Array(cleanedData.values.length).fill(null).concat(statisticalForecast);
                     const futureLabels = [...cleanedData.labels];
-                    for (let i = 1; i < forecastData.length; i++) {
+                    for (let i = 1; i <= statisticalForecast.length; i++) {
                         futureLabels.push(`Forecast ${i}`);
                     }
-                    fullChartDataForExport = { labels: futureLabels, actualData: cleanedData.values, forecastData: forecastDisplayData };
-                    updateChart(fullChartDataForExport);
-                    
-                    chartLoader.classList.add('hidden');
-                    chartWrapper.classList.remove('hidden');
-                    exportCsvBtn.classList.remove('hidden');
+                    statChartDataForExport = { labels: futureLabels, actualData: cleanedData.values.concat(new Array(statisticalForecast.length).fill(null)), forecastData: statForecastDisplayData };
+                    updateCharts(statChartDataForExport, null); // Update statistical chart first
 
-                    // --- PHASE 4: AGENT 3 (RATIONALE) ---
-                    const agent3_result = await agent3_explainForecast(ai, cleanedData, forecastData, model3, language);
+                    statChartLoader.classList.add('hidden');
+                    statChartWrapper.classList.remove('hidden');
+                    
+                // --- PHASE 4: AGENT 2 (VALIDATION) ---
+                    loadingStatusText.textContent = `Agent 2 (${model2}): Validating Statistical Forecast...`;
+                    const agent2_result = await agent2_validateForecast(ai, cleanedData, statisticalForecast, model2);
+                    const aiValidatedForecastData = agent2_result.forecast;
+                    
+                    // UI Update after Agent 2
+                    const aiForecastDisplayData = new Array(cleanedData.values.length).fill(null).concat(aiValidatedForecastData);
+                    fullChartDataForExport = { labels: futureLabels, actualData: cleanedData.values.concat(new Array(aiValidatedForecastData.length).fill(null)), forecastData: aiForecastDisplayData };
+                    updateCharts(statChartDataForExport, fullChartDataForExport); // Update both charts
+                    
+                    aiChartLoader.classList.add('hidden');
+                    aiChartWrapper.classList.remove('hidden');
+                    exportCsvBtn.classList.remove('hidden'); // Export button for AI-validated forecast
+
+                    // --- PHASE 5: AGENT 3 (RATIONALE) ---
+                    const agent3_result = await agent3_explainForecast(ai, cleanedData, aiValidatedForecastData, model3, language);
                     
                     // UI Update after Agent 3
                     rationaleOutput.textContent = agent3_result.rationale;
                     rationaleLoader.classList.add('hidden');
                     rationaleOutput.classList.remove('hidden');
 
-                    // --- PHASE 5: AGENT 4 (SUMMARY) ---
-                    const agent4_result = await agent4_generateSummary(ai, cleanedData, forecastData, agent3_result.rationale, model4, language);
+                    // --- PHASE 6: AGENT 4 (SUMMARY) ---
+                    const agent4_result = await agent4_generateSummary(ai, cleanedData, aiValidatedForecastData, agent3_result.rationale, model4, language);
                     
                     // UI Update after Agent 4
                     summaryOutput.textContent = agent4_result.summary;
@@ -457,19 +540,87 @@
                 }
             });
             
-            const updateChart = (chartData) => {
-                forecastChart.data.labels = chartData.labels;
-                forecastChart.data.datasets = [{
-                    label: 'Actual', data: chartData.actualData, borderColor: '#38B2AC', backgroundColor: '#38B2AC',
-                    tension: 0.4, pointRadius: 0, pointHoverRadius: 6,
-                }, {
-                    label: 'Forecast', data: chartData.forecastData, borderColor: '#4299E1', backgroundColor: '#4299E1',
-                    borderDash: [5, 5], tension: 0.4, pointRadius: 0, pointHoverRadius: 6,
-                }];
-                forecastChart.update();
+            let statForecastChart = null;
+            let aiForecastChart = null;
+
+            const initCharts = () => {
+                if (statForecastChart) statForecastChart.destroy();
+                if (aiForecastChart) aiForecastChart.destroy();
+
+                const statCtx = document.getElementById('stat-forecast-chart').getContext('2d');
+                statForecastChart = new Chart(statCtx, {
+                    type: 'line', data: { labels: [], datasets: [] },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: { labels: { color: '#A0AEC0', font: { size: 14 }}},
+                            tooltip: {
+                                enabled: true, backgroundColor: 'rgba(17, 24, 39, 0.8)',
+                                borderColor: '#4A5568', borderWidth: 1, padding: 12,
+                                titleColor: '#E5E7EB', bodyColor: '#D1D5DB',
+                                callbacks: { label: (c) => `${c.dataset.label}: ${new Intl.NumberFormat('en-US').format(c.parsed.y)}` }
+                            }
+                        },
+                        scales: {
+                            x: { grid: { color: 'rgba(74, 85, 104, 0.5)' }, ticks: { color: '#A0AEC0' }},
+                            y: { border: { display: false }, grid: { color: 'rgba(74, 85, 104, 0.5)' }, ticks: { color: '#A0AEC0' }}
+                        }
+                    }
+                });
+
+                const aiCtx = document.getElementById('ai-forecast-chart').getContext('2d');
+                aiForecastChart = new Chart(aiCtx, {
+                    type: 'line', data: { labels: [], datasets: [] },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: { labels: { color: '#A0AEC0', font: { size: 14 }}},
+                            tooltip: {
+                                enabled: true, backgroundColor: 'rgba(17, 24, 39, 0.8)',
+                                borderColor: '#4A5568', borderWidth: 1, padding: 12,
+                                titleColor: '#E5E7EB', bodyColor: '#D1D5DB',
+                                callbacks: { label: (c) => `${c.dataset.label}: ${new Intl.NumberFormat('en-US').format(c.parsed.y)}` }
+                            }
+                        },
+                        scales: {
+                            x: { grid: { color: 'rgba(74, 85, 104, 0.5)' }, ticks: { color: '#A0AEC0' }},
+                            y: { border: { display: false }, grid: { color: 'rgba(74, 85, 104, 0.5)' }, ticks: { color: '#A0AEC0' }}
+                        }
+                    }
+                });
             };
-            
-            initChart();
+
+            const updateCharts = (statChartData, aiChartData) => {
+                statForecastChart.data.labels = statChartData.labels;
+                statForecastChart.data.datasets = [{
+                    label: 'Actual', data: statChartData.actualData, borderColor: '#38B2AC', backgroundColor: '#38B2AC',
+                    tension: 0.4, pointRadius: 0, pointHoverRadius: 6,
+                    spanGaps: true,
+                }, {
+                    label: 'Statistical Forecast', data: statChartData.forecastData, borderColor: '#F6AD55', backgroundColor: '#F6AD55',
+                    borderDash: [5, 5], tension: 0.4, pointRadius: 0, pointHoverRadius: 6,
+                    spanGaps: true,
+                }];
+                statForecastChart.update();
+
+                if (aiChartData) {
+                    aiForecastChart.data.labels = aiChartData.labels;
+                    aiForecastChart.data.datasets = [{
+                        label: 'Actual', data: aiChartData.actualData, borderColor: '#38B2AC', backgroundColor: '#38B2AC',
+                        tension: 0.4, pointRadius: 0, pointHoverRadius: 6,
+                        spanGaps: true,
+                    }, {
+                        label: 'AI-Validated Forecast', data: aiChartData.forecastData, borderColor: '#4299E1', backgroundColor: '#4299E1',
+                        borderDash: [5, 5], tension: 0.4, pointRadius: 0, pointHoverRadius: 6,
+                        spanGaps: true,
+                    }];
+                    aiForecastChart.update();
+                }
+            };
+
+            initCharts();
         });
     </script>
 </body>
