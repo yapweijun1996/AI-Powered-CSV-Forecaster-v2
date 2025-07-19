@@ -4,19 +4,19 @@ This project is an AI-powered CSV data analysis and forecasting tool designed to
 
 ## AI Agents and Their Roles
 
-- **Agent 1 (Data & Table Generator):**  
+- **Data & Table Generator:**  
   A professional ERP data specialist responsible for cleaning raw CSV data by accurately identifying the primary date/time and numerical value columns. Generates a well-formatted, accessible HTML table adhering to enterprise UI standards. It also recommends an initial chart type for data visualization.
 
-- **Agent 2 (Forecasting Specialist):**  
+- **Forecasting Specialist:**  
   A professional forecasting expert who rigorously evaluates and refines initial statistical forecasts based on historical data. Ensures forecasts are analytically sound, align with business trends, and produce realistic, data-driven projections.
 
-- **Agent 3 (Reasoning Analyst):**  
+- **Reasoning Analyst:**  
   A professional data reasoning analyst who provides clear, concise, and authoritative explanations of forecast logic. Analyzes trends such as growth, seasonality, and anomalies, delivering insights suitable for senior management.
 
-- **Agent 4 (Reporting Analyst):**  
+- **Reporting Analyst:**  
   A senior ERP professional reporting analyst tasked with synthesizing data tables, forecasts, and rationale into a polished, cohesive executive summary. The summary is designed for high-level ERP system reports and actionable business insights.
 
-- **Agent 6 (Chief Visualization Officer):**  
+- **Chief Visualization Officer:**  
   A master data storyteller responsible for analyzing the entire dataset to find the most compelling narrative. Instead of creating a single chart, this agent designs a complementary dashboard of 2-3 visualizations, each offering a unique perspective (e.g., high-level trend, categorical breakdown, compositional view). This provides a more holistic and insightful understanding of the data.
 
 ## Technical Details

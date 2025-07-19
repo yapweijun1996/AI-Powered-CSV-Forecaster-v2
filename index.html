@@ -139,20 +139,37 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label for="agent3-model" class="block text-sm font-medium text-gray-400">Agent 3 (Reasoning Analyst)</label>
+                                    <label for="agent1-model" class="block text-sm font-medium text-gray-400">Data Cleaner</label>
+                                    <select id="agent1-model" class="w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash</option>
+                                        <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="agent2-model" class="block text-sm font-medium text-gray-400">Forecast Validator</label>
+                                    <select id="agent2-model" class="w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash</option>
+                                        <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="agent3-model" class="block text-sm font-medium text-gray-400">Reasoning Analyst</label>
                                     <select id="agent3-model" class="w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                        <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                        <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash</option>
+                                        <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label for="agent4-model" class="block text-sm font-medium text-gray-400">Agent 4 (Reporting Analyst)</label>
+                                    <label for="agent4-model" class="block text-sm font-medium text-gray-400">Reporting Analyst</label>
                                     <select id="agent4-model" class="w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                        <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                        <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash</option>
+                                        <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label for="agent6-model" class="block text-sm font-medium text-gray-400">Agent 6 (Chief Visualization Officer)</label>
+                                    <label for="agent6-model" class="block text-sm font-medium text-gray-400">Chief Visualization Officer</label>
                                     <select id="agent6-model" class="w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash</option>
                                         <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
                                     </select>
                                 </div>
@@ -219,7 +236,7 @@
                         <h3 class="text-2xl font-semibold text-gray-200 mb-3 border-b border-gray-700 pb-2">Forecast Rationale</h3>
                         <div id="rationale-loader" class="flex items-center space-x-3 py-4">
                              <div class="loader-sm"></div>
-                             <p class="text-gray-400">Agent 3 is analyzing the forecast logic...</p>
+                             <p class="text-gray-400">Reasoning Analyst is analyzing the forecast logic...</p>
                         </div>
                         <p id="rationale-output" class="text-gray-300 whitespace-pre-wrap hidden"></p>
                     </div>
@@ -227,7 +244,7 @@
                         <h3 class="text-2xl font-semibold text-gray-200 mb-3 border-b border-gray-700 pb-2">Executive Summary</h3>
                         <div id="summary-loader" class="flex items-center space-x-3 py-4">
                             <div class="loader-sm"></div>
-                            <p class="text-gray-400">Agent 4 is generating the executive summary...</p>
+                            <p class="text-gray-400">Reporting Analyst is generating the executive summary...</p>
                         </div>
                         <div id="summary-output" class="text-gray-300 whitespace-pre-wrap hidden"></div>
                     </div>
@@ -283,6 +300,8 @@ function saveApiKey(key) {
             const exportCsvBtn = document.getElementById('export-csv-btn');
             const outputLanguageSelect = document.getElementById('output-language');
             
+            const agent1ModelSelect = document.getElementById('agent1-model');
+            const agent2ModelSelect = document.getElementById('agent2-model');
             const agent3ModelSelect = document.getElementById('agent3-model');
             const agent4ModelSelect = document.getElementById('agent4-model');
             const agent6ModelSelect = document.getElementById('agent6-model');
@@ -458,7 +477,7 @@ function generateStatisticalForecast(cleanedData) {
 }
 
 const agent1_processAndTable = async (ai, rawCsv, model) => {
-    loadingStatusText.textContent = `Agent 1 (${model}): Cleaning data and generating table...`;
+    loadingStatusText.textContent = `Data Cleaner (${model}): Cleaning data and generating table...`;
     const schema = {
         type: Type.OBJECT, properties: {
             tableHtml: { type: Type.STRING, description: "An HTML string representing the cleaned data in a table. The table MUST have an id='data-table-interactive' and include <thead> and <tbody> elements. Style it with these TailwindCSS classes: table with 'w-full text-sm text-left text-gray-400', thead with 'text-xs text-gray-300 uppercase bg-gray-700', and tbody tr with 'border-b border-gray-700'." },
@@ -611,8 +630,8 @@ ${rationale}`;
 
                 try {
                     const ai = new GoogleGenAI({ apiKey: apiKey });
-                    const model1 = "gemini-2.5-flash";
-                    const model2 = "gemini-2.5-pro";
+                    const model1 = agent1ModelSelect.value;
+                    const model2 = agent2ModelSelect.value;
                     const model3 = agent3ModelSelect.value;
                     const model4 = agent4ModelSelect.value;
                     const model6 = agent6ModelSelect.value;
@@ -645,7 +664,7 @@ ${rationale}`;
 
 
                     // --- PHASE 4: AGENT 6 (CHIEF VISUALIZATION OFFICER) ---
-                    loadingStatusText.textContent = `Agent 6 (${model6}): Designing visualization dashboard...`;
+                    loadingStatusText.textContent = `Chief Visualization Officer (${model6}): Designing visualization dashboard...`;
                     multiChartLoader.classList.remove('hidden');
                     multiChartDashboard.innerHTML = ''; // Clear previous charts
 
@@ -710,7 +729,7 @@ ${rationale}`;
                     statChartWrapper.classList.remove('hidden');
                     
                     // --- PHASE 6: AGENT 2 (VALIDATION) ---
-                    loadingStatusText.textContent = `Agent 2 (${model2}): Validating Statistical Forecast...`;
+                    loadingStatusText.textContent = `Forecast Validator (${model2}): Validating Statistical Forecast...`;
                     const agent2_result = await agent2_validateForecast(ai, cleanedData, statisticalForecast, model2);
                     const aiValidatedForecastData = agent2_result.forecast;
                     
