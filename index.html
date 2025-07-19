@@ -7,6 +7,7 @@
     <title>AI-Powered CSV Forecaster</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/simple-statistics@7.7.4/dist/simple-statistics.min.js"></script>
     <!-- DataTables dependencies -->
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.css">
@@ -75,6 +76,25 @@
         #table-output table { width: 100%; border-collapse: collapse; }
         #table-output thead { background-color: #374151; }
         #table-output th, #table-output td { padding: 0.75rem 1rem; }
+        
+        /* Styles for rendered markdown summary */
+        #summary-output h3 {
+            font-size: 1.25rem; /* text-xl */
+            font-weight: 600; /* font-semibold */
+            color: #e5e7eb; /* text-gray-200 */
+            margin-top: 1.5rem; /* mt-6 */
+            margin-bottom: 0.75rem; /* mb-3 */
+            border-bottom: 1px solid #4b5563; /* border-b border-gray-700 */
+            padding-bottom: 0.5rem; /* pb-2 */
+        }
+        #summary-output ul {
+            list-style-type: disc;
+            padding-left: 1.5rem; /* pl-6 */
+            margin-bottom: 1rem; /* mb-4 */
+        }
+        #summary-output li {
+            margin-bottom: 0.5rem; /* mb-2 */
+        }
     </style>
 </head>
 <body class="bg-gray-900">
@@ -106,42 +126,36 @@
                              
                              <div class="my-6">
                                 <h3 class="text-lg font-medium text-gray-300 mb-3 text-left">Configuration</h3>
-                                <div class="space-y-4 text-left p-4 bg-gray-900/30 rounded-lg">
-                                     <div>
-                                        <label for="output-language" class="block text-sm font-medium text-gray-400">Output Language</label>
-                                        <select id="output-language" class="w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                            <option value="English">English</option>
-                                            <option value="Spanish">Spanish</option>
-                                            <option value="French">French</option>
-                                            <option value="German">German</option>
-                                            <option value="Japanese">Japanese</option>
-                                            <option value="Mandarin Chinese">Mandarin Chinese</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label for="agent1-model" class="block text-sm font-medium text-gray-400">Agent 1 (Data & Table Generator)</label>
-                                        <select id="agent1-model" class="w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label for="agent2-model" class="block text-sm font-medium text-gray-400">Agent 2 (Forecasting Specialist)</label>
-                                        <select id="agent2-model" class="w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label for="agent3-model" class="block text-sm font-medium text-gray-400">Agent 3 (Reasoning Analyst)</label>
-                                        <select id="agent3-model" class="w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label for="agent4-model" class="block text-sm font-medium text-gray-400">Agent 4 (Reporting Analyst)</label>
-                                        <select id="agent4-model" class="w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                                        </select>
-                                    </div>
+                            <div class="space-y-4 text-left p-4 bg-gray-900/30 rounded-lg">
+                                 <div>
+                                    <label for="output-language" class="block text-sm font-medium text-gray-400">Output Language</label>
+                                    <select id="output-language" class="w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <option value="English">English</option>
+                                        <option value="Spanish">Spanish</option>
+                                        <option value="French">French</option>
+                                        <option value="German">German</option>
+                                        <option value="Japanese">Japanese</option>
+                                        <option value="Mandarin Chinese">Mandarin Chinese</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="agent3-model" class="block text-sm font-medium text-gray-400">Agent 3 (Reasoning Analyst)</label>
+                                    <select id="agent3-model" class="w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="agent4-model" class="block text-sm font-medium text-gray-400">Agent 4 (Reporting Analyst)</label>
+                                    <select id="agent4-model" class="w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="agent6-model" class="block text-sm font-medium text-gray-400">Agent 6 (Chief Visualization Officer)</label>
+                                    <select id="agent6-model" class="w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                                    </select>
+                                </div>
                                 </div>
                             </div>
 
@@ -165,42 +179,42 @@
                 </div>
 
                 <!-- Results Section -->
-                <div id="results-section" class="hidden space-y-8" style="margin-top: 50px;">
-                     <div id="summary-container" class="hidden">
-                        <h3 class="text-2xl font-semibold text-gray-200 mb-3 border-b border-gray-700 pb-2">ERP Professional Summary</h3>
-                        <div id="summary-loader" class="flex items-center space-x-3 py-4">
-                            <div class="loader-sm"></div>
-                            <p class="text-gray-400">Agent 4 is crafting the final summary...</p>
-                        </div>
-                        <p id="summary-output" class="text-gray-300 whitespace-pre-wrap hidden"></p>
+            <div id="results-section" class="hidden space-y-8" style="margin-top: 50px;">
+                 <div id="table-container" class="hidden">
+                    <div class="flex justify-between items-center border-b border-gray-700 pb-2 mb-3">
+                       <h3 class="text-2xl font-semibold text-gray-200">Data Table</h3>
+                       <button id="export-csv-btn" class="hidden text-sm bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1 px-3 rounded-lg transition-colors">Export to CSV</button>
                     </div>
-                     <div id="table-container" class="hidden">
-                        <div class="flex justify-between items-center border-b border-gray-700 pb-2 mb-3">
-                           <h3 class="text-2xl font-semibold text-gray-200">Data Table</h3>
-                           <button id="export-csv-btn" class="hidden text-sm bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1 px-3 rounded-lg transition-colors">Export to CSV</button>
-                        </div>
-                        <div id="table-output"></div>
+                    <div id="table-output"></div>
+                </div>
+                <div id="multi-chart-dashboard-container" class="hidden mt-8">
+                    <h3 class="text-2xl font-semibold text-gray-200 mb-3 border-b border-gray-700 pb-2">Automated Visualization Dashboard</h3>
+                     <div id="multi-chart-loader" class="flex items-center justify-center h-96 flex-col">
+                        <div class="loader"></div>
+                        <p class="text-gray-400 mt-4">Chief Visualization Officer is designing your dashboard...</p>
                     </div>
-                     <div id="chart-container" class="hidden">
-                        <h3 class="text-2xl font-semibold text-gray-200 mb-3 border-b border-gray-700 pb-2">Statistical Forecast Chart</h3>
-                        <div id="stat-chart-loader" class="flex items-center justify-center h-96 flex-col">
-                            <div class="loader"></div>
-                            <p class="text-gray-400 mt-4">Generating statistical forecast chart...</p>
-                        </div>
-                        <div id="stat-chart-wrapper" class="w-full h-96 hidden">
-                            <canvas id="stat-forecast-chart"></canvas>
-                        </div>
+                    <div id="multi-chart-dashboard" class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-4"></div>
+                </div>
+                 <div id="chart-container" class="hidden">
+                    <h3 class="text-2xl font-semibold text-gray-200 mb-3 border-b border-gray-700 pb-2">Statistical Forecast Chart</h3>
+                    <div id="stat-chart-loader" class="flex items-center justify-center h-96 flex-col">
+                        <div class="loader"></div>
+                        <p class="text-gray-400 mt-4">Generating statistical forecast chart...</p>
                     </div>
-                    <div id="ai-chart-container" class="hidden mt-8">
-                        <h3 class="text-2xl font-semibold text-gray-200 mb-3 border-b border-gray-700 pb-2">AI-Validated Forecast Chart</h3>
-                        <div id="ai-chart-loader" class="flex items-center justify-center h-96 flex-col">
-                            <div class="loader"></div>
-                            <p class="text-gray-400 mt-4">Generating AI-validated forecast chart...</p>
-                        </div>
-                        <div id="ai-chart-wrapper" class="w-full h-96 hidden">
-                            <canvas id="ai-forecast-chart"></canvas>
-                        </div>
+                    <div id="stat-chart-wrapper" class="w-full h-96 hidden">
+                        <canvas id="stat-forecast-chart"></canvas>
                     </div>
+                </div>
+                <div id="ai-chart-container" class="hidden mt-8">
+                    <h3 class="text-2xl font-semibold text-gray-200 mb-3 border-b border-gray-700 pb-2">AI-Validated Forecast Chart</h3>
+                    <div id="ai-chart-loader" class="flex items-center justify-center h-96 flex-col">
+                        <div class="loader"></div>
+                        <p class="text-gray-400 mt-4">Generating AI-validated forecast chart...</p>
+                    </div>
+                    <div id="ai-chart-wrapper" class="w-full h-96 hidden">
+                        <canvas id="ai-forecast-chart"></canvas>
+                    </div>
+                </div>
                     <div id="rationale-container" class="hidden">
                         <h3 class="text-2xl font-semibold text-gray-200 mb-3 border-b border-gray-700 pb-2">Forecast Rationale</h3>
                         <div id="rationale-loader" class="flex items-center space-x-3 py-4">
@@ -208,6 +222,14 @@
                              <p class="text-gray-400">Agent 3 is analyzing the forecast logic...</p>
                         </div>
                         <p id="rationale-output" class="text-gray-300 whitespace-pre-wrap hidden"></p>
+                    </div>
+                    <div id="summary-container" class="hidden">
+                        <h3 class="text-2xl font-semibold text-gray-200 mb-3 border-b border-gray-700 pb-2">Executive Summary</h3>
+                        <div id="summary-loader" class="flex items-center space-x-3 py-4">
+                            <div class="loader-sm"></div>
+                            <p class="text-gray-400">Agent 4 is generating the executive summary...</p>
+                        </div>
+                        <div id="summary-output" class="text-gray-300 whitespace-pre-wrap hidden"></div>
                     </div>
                 </div>
             </div>
@@ -261,10 +283,9 @@ function saveApiKey(key) {
             const exportCsvBtn = document.getElementById('export-csv-btn');
             const outputLanguageSelect = document.getElementById('output-language');
             
-            const agent1ModelSelect = document.getElementById('agent1-model');
-            const agent2ModelSelect = document.getElementById('agent2-model');
             const agent3ModelSelect = document.getElementById('agent3-model');
             const agent4ModelSelect = document.getElementById('agent4-model');
+            const agent6ModelSelect = document.getElementById('agent6-model');
             
             const uploadSection = document.getElementById('upload-section');
             const skeletonSection = document.getElementById('skeleton-section');
@@ -360,6 +381,68 @@ getApiKey().then(key => {
                 return JSON.parse(response.text);
             };
 
+            const agent6_designMultiChartDashboard = async (ai, cleanedData, model) => {
+                const schema = {
+                    type: Type.OBJECT,
+                    properties: {
+                        dashboard: {
+                            type: Type.ARRAY,
+                            description: "An array of 2-3 chart objects to build a dashboard.",
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    title: { type: Type.STRING, description: "A clear, human-readable title for the chart." },
+                                    chartType: { type: Type.STRING, description: "The Chart.js type (e.g., 'line', 'bar', 'pie')." },
+                                    rationale: { type: Type.STRING, description: "A brief, one-sentence explanation of why this chart is valuable." },
+                                    data: {
+                                        type: Type.OBJECT,
+                                        properties: {
+                                            labels: { type: Type.ARRAY, items: { type: Type.STRING } },
+                                            datasets: {
+                                                type: Type.ARRAY,
+                                                items: {
+                                                    type: Type.OBJECT,
+                                                    properties: {
+                                                        label: { type: Type.STRING },
+                                                        data: { type: Type.ARRAY, items: { type: Type.ANY } },
+                                                        backgroundColor: { type: Type.ANY },
+                                                        borderColor: { type: Type.ANY },
+                                                        borderWidth: { type: Type.NUMBER },
+                                                        fill: { type: Type.BOOLEAN },
+                                                        tension: { type: Type.NUMBER }
+                                                    },
+                                                    required: ["label", "data"]
+                                                }
+                                            }
+                                        },
+                                        required: ["labels", "datasets"]
+                                    }
+                                },
+                                required: ["title", "chartType", "rationale", "data"]
+                            }
+                        }
+                    },
+                    required: ["dashboard"]
+                };
+
+                const prompt = `You are a Chief Visualization Officer and a master data storyteller. Your mission is to analyze this dataset and present the most compelling narrative hidden within it through a dashboard of 2-3 complementary charts.
+
+**Your Guiding Principles:**
+1.  **Tell a Story:** Each chart must offer a unique perspective. Do not show the same data in two different ways. One chart could show a high-level trend, while a second provides a detailed breakdown.
+2.  **Prioritize Clarity:** Choose the right chart for the job.
+    *   If a column contains dates, months, or years, you **MUST** generate a 'line' chart to show the trend over time.
+    *   If you find categorical data (like regions, products, names) with corresponding numbers, a 'bar' chart is the best choice for comparison.
+    *   To show the composition of a whole (e.g., market share), use a 'pie' or 'doughnut' chart, but **ONLY** if there are fewer than 7 categories.
+3.  **Be Decisive:** Analyze the data and decide on the 2-3 most important stories to tell. Do not create more than 3 charts.
+
+**Your Task:**
+Return a valid JSON object containing a 'dashboard' array. Each object in the array represents one chart and must strictly follow the provided schema. For each chart's dataset, choose appropriate colors.
+
+--- HISTORICAL DATA ---
+${JSON.stringify(cleanedData)}`;
+                return await callAgent(ai, model, prompt, schema);
+            };
+
 function generateStatisticalForecast(cleanedData) {
     const dataPoints = cleanedData.values.map((y, i) => [i, y]);
     const regression = ss.linearRegression(dataPoints);
@@ -375,14 +458,20 @@ function generateStatisticalForecast(cleanedData) {
 }
 
 const agent1_processAndTable = async (ai, rawCsv, model) => {
-    loadingStatusText.textContent = `Agent 1 (${model}): Generating Table...`;
+    loadingStatusText.textContent = `Agent 1 (${model}): Cleaning data and generating table...`;
     const schema = {
         type: Type.OBJECT, properties: {
             tableHtml: { type: Type.STRING, description: "An HTML string representing the cleaned data in a table. The table MUST have an id='data-table-interactive' and include <thead> and <tbody> elements. Style it with these TailwindCSS classes: table with 'w-full text-sm text-left text-gray-400', thead with 'text-xs text-gray-300 uppercase bg-gray-700', and tbody tr with 'border-b border-gray-700'." },
-            cleanedData: { type: Type.OBJECT, properties: { labels: { type: Type.ARRAY, items: { type: Type.STRING } }, values: { type: Type.ARRAY, items: { type: Type.NUMBER } }, }, required: ['labels', 'values'] },
+            cleanedData: { type: Type.OBJECT, properties: { labels: { type: Type.ARRAY, items: { type: Type.STRING } }, values: { type: Type.ARRAY, items: { type: Type.NUMBER } }, }, required: ['labels', 'values'] }
         }, required: ['tableHtml', 'cleanedData']
     };
-    const prompt = `You are a professional ERP data specialist at a leading enterprise software company. Your responsibility is to process raw CSV data with precision and rigor. Perform the following tasks: 1. Clean the data by accurately identifying the primary date/time column and the primary numerical value column, ensuring data integrity and consistency. 2. Generate a well-formatted, accessible, and visually clear HTML table of this cleaned data, adhering to enterprise UI standards. Return both the cleaned data in JSON format and the HTML table string.\n\n--- CSV DATA ---\n${rawCsv}`;
+    const prompt = `You are a professional ERP data specialist. Your responsibility is to process raw CSV data.
+1.  **Clean the data:** Identify the primary date/time column for labels and the primary numerical column for values.
+2.  **Generate HTML table:** Create a well-formatted HTML table of the cleaned data. The table must have an id='data-table-interactive'.
+Return the cleaned data in JSON format and the HTML table string.
+
+--- CSV DATA ---
+${rawCsv}`;
     return await callAgent(ai, model, prompt, schema);
 };
 
@@ -399,10 +488,67 @@ const agent3_explainForecast = async (ai, cleanedData, forecastData, model, lang
 };
             
 const agent4_generateSummary = async (ai, cleanedData, forecastData, rationale, model, language) => {
-    const schema = { type: Type.OBJECT, properties: { summary: { type: Type.STRING, description: `A final, one-paragraph executive summary in ${language}. Combine the historical trends, the forecast projection, and the rationale behind the forecast into a single, cohesive narrative for a business audience.` } }, required: ['summary'] };
-    const prompt = `You are a senior ERP professional reporting analyst at a top-tier enterprise software company. Your responsibility is to analyze the provided data table and forecast chart to craft a powerful, integrated executive summary suitable for high-level ERP system reports. Synthesize the key trends observed in the table and the projections from the chart, incorporating the forecast's reasoning, into a single, cohesive, polished, and professional narrative that is actionable for business stakeholders. Your entire response must be in ${language}.\n\n--- DATA FOR TABLE ---\n${JSON.stringify(cleanedData)}\n\n--- DATA FOR CHART ---\n${JSON.stringify(forecastData)}\n\n--- FORECAST RATIONALE ---\n${rationale}`;
+    const schema = {
+        type: Type.OBJECT,
+        properties: {
+            summary: {
+                type: Type.STRING,
+                description: `A comprehensive, multi-section professional report in ${language}. It must include four sections: '### 1. Executive Summary / Key Findings', '### 2. Historical Data Analysis', '### 3. Forecast Projections', and '### 4. Recommendations / Implications'.`
+            }
+        },
+        required: ['summary']
+    };
+    const prompt = `You are a senior ERP professional reporting analyst at a top-tier enterprise software company. Your responsibility is to analyze the provided data table, forecast chart, and forecast rationale to craft a comprehensive, structured executive report suitable for high-level ERP system reports.
+
+The report should be formatted with the following sections, using clear and professional language, and be entirely in ${language}:
+
+### 1. Executive Summary / Key Findings
+- Provide a concise, high-level overview of the most critical insights from the historical data and the forecast.
+- Highlight the most significant trends, anomalies, or projected outcomes that a senior executive needs to know immediately.
+
+### 2. Historical Data Analysis
+- Briefly describe the key trends and patterns observed in the historical data.
+- Mention any significant historical events, seasonality, growth, or decline that influenced the data.
+
+### 3. Forecast Projections
+- Clearly present the future forecast.
+- State the expected direction and magnitude of the projection.
+- Mention the duration of the forecast (e.g., "next 30 periods").
+
+### 4. Recommendations / Implications
+- Based on the historical analysis and forecast, provide actionable insights or implications for the business.
+- Suggest potential strategies or considerations for decision-makers.
+
+--- DATA FOR TABLE ---
+${JSON.stringify(cleanedData)}
+
+--- DATA FOR CHART ---
+${JSON.stringify(forecastData)}
+
+--- FORECAST RATIONALE ---
+${rationale}`;
     return await callAgent(ai, model, prompt, schema);
 };
+
+            const sortDataByDate = (data) => {
+                const combined = data.labels.map((label, index) => ({
+                    label: label,
+                    value: data.values[index],
+                    date: new Date(label)
+                }));
+
+                if (combined.some(d => isNaN(d.date.getTime()))) {
+                    console.warn("Could not parse all date labels. Data will not be sorted.");
+                    return data;
+                }
+
+                combined.sort((a, b) => a.date - b.date);
+
+                const sortedLabels = combined.map(item => item.label);
+                const sortedValues = combined.map(item => item.value);
+
+                return { labels: sortedLabels, values: sortedValues };
+            };
 
             const exportToCsv = () => {
                 if (!fullChartDataForExport) return;
@@ -436,6 +582,7 @@ const agent4_generateSummary = async (ai, cleanedData, forecastData, rationale, 
                 resultsSection.classList.add('hidden');
                 skeletonSection.classList.remove('hidden');
 
+
                 // Reset UI state from previous runs
                 if (dataTableInstance) {
                     dataTableInstance.destroy();
@@ -444,6 +591,7 @@ const agent4_generateSummary = async (ai, cleanedData, forecastData, rationale, 
                 tableOutput.innerHTML = "";
                 exportCsvBtn.classList.add('hidden');
                 fullChartDataForExport = null;
+                statChartDataForExport = null;
                 
                 // Hide all result content and show loaders
                 [summaryContainer, tableContainer, statChartContainer, aiChartContainer, rationaleContainer].forEach(c => c.classList.add('hidden'));
@@ -459,15 +607,22 @@ const agent4_generateSummary = async (ai, cleanedData, forecastData, rationale, 
                 rationaleOutput.classList.add('hidden');
                 rationaleLoader.classList.remove('hidden');
 
-                loadingStatusText.textContent = 'Agent 1 is processing and cleaning your data...';
+                loadingStatusText.textContent = 'Agents are processing your data...';
 
                 try {
                     const ai = new GoogleGenAI({ apiKey: apiKey });
-                    const [model1, model2, model3, model4] = [agent1ModelSelect.value, agent2ModelSelect.value, agent3ModelSelect.value, agent4ModelSelect.value];
+                    const model1 = "gemini-2.5-flash";
+                    const model2 = "gemini-2.5-pro";
+                    const model3 = agent3ModelSelect.value;
+                    const model4 = agent4ModelSelect.value;
+                    const model6 = agent6ModelSelect.value;
                     
                     // --- PHASE 2: AGENT 1 (TABLE) ---
                     const agent1_result = await agent1_processAndTable(ai, csvData, model1);
-                    const cleanedData = agent1_result.cleanedData;
+                    let cleanedData = agent1_result.cleanedData; // Use let to allow reassignment
+
+                    // Sort data by date to ensure chronological order
+                    cleanedData = sortDataByDate(cleanedData);
                     
                     // UI Update after Agent 1
                     skeletonSection.classList.add('hidden');
@@ -478,12 +633,69 @@ const agent4_generateSummary = async (ai, cleanedData, forecastData, rationale, 
                     dataTableInstance = $('#data-table-interactive').DataTable({ "pageLength": 10, "destroy": true });
                     
                     // Reveal other containers with loaders
+                    const multiChartDashboardContainer = document.getElementById('multi-chart-dashboard-container');
+                    const multiChartDashboard = document.getElementById('multi-chart-dashboard');
+                    const multiChartLoader = document.getElementById('multi-chart-loader');
+                    
                     statChartContainer.classList.remove('hidden');
                     aiChartContainer.classList.remove('hidden');
                     rationaleContainer.classList.remove('hidden');
                     summaryContainer.classList.remove('hidden');
+                    multiChartDashboardContainer.classList.remove('hidden');
 
-                    // --- PHASE 3: STATISTICAL FORECAST ---
+
+                    // --- PHASE 4: AGENT 6 (CHIEF VISUALIZATION OFFICER) ---
+                    loadingStatusText.textContent = `Agent 6 (${model6}): Designing visualization dashboard...`;
+                    multiChartLoader.classList.remove('hidden');
+                    multiChartDashboard.innerHTML = ''; // Clear previous charts
+
+                    const agent6_result = await agent6_designMultiChartDashboard(ai, cleanedData, model6);
+
+                    agent6_result.dashboard.forEach((chartDef, index) => {
+                        const chartId = `dashboard-chart-${index}`;
+                        const chartCard = document.createElement('div');
+                        chartCard.className = 'bg-gray-800 p-4 rounded-lg shadow-lg';
+                        
+                        chartCard.innerHTML = `
+                            <h4 class="text-lg font-semibold text-gray-200">${chartDef.title}</h4>
+                            <p class="text-sm text-gray-400 mb-2">${chartDef.rationale}</p>
+                            <div class="w-full h-80">
+                                <canvas id="${chartId}"></canvas>
+                            </div>
+                        `;
+                        
+                        multiChartDashboard.appendChild(chartCard);
+                        
+                        const ctx = document.getElementById(chartId).getContext('2d');
+                        new Chart(ctx, {
+                            type: chartDef.chartType,
+                            data: chartDef.data,
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                interaction: { mode: 'index', intersect: false },
+                                plugins: {
+                                    legend: { labels: { color: '#A0AEC0', font: { size: 12 } } },
+                                    tooltip: {
+                                        enabled: true,
+                                        backgroundColor: 'rgba(17, 24, 39, 0.8)',
+                                        borderColor: '#4A5568',
+                                        borderWidth: 1,
+                                        padding: 12,
+                                        titleColor: '#E5E7EB',
+                                        bodyColor: '#D1D5DB',
+                                    }
+                                },
+                                scales: (chartDef.chartType === 'radar' || chartDef.chartType === 'polarArea' || chartDef.chartType === 'doughnut' || chartDef.chartType === 'pie') ? {} : {
+                                    x: { grid: { color: 'rgba(74, 85, 104, 0.5)' }, ticks: { color: '#A0AEC0' } },
+                                    y: { border: { display: false }, grid: { color: 'rgba(74, 85, 104, 0.5)' }, ticks: { color: '#A0AEC0' } }
+                                }
+                            }
+                        });
+                    });
+                    multiChartLoader.classList.add('hidden');
+
+                    // --- PHASE 5: STATISTICAL FORECAST ---
                     loadingStatusText.textContent = `Generating statistical forecast...`;
                     const statisticalForecast = generateStatisticalForecast(cleanedData);
                     const statForecastDisplayData = new Array(cleanedData.values.length).fill(null).concat(statisticalForecast);
@@ -497,7 +709,7 @@ const agent4_generateSummary = async (ai, cleanedData, forecastData, rationale, 
                     statChartLoader.classList.add('hidden');
                     statChartWrapper.classList.remove('hidden');
                     
-                // --- PHASE 4: AGENT 2 (VALIDATION) ---
+                    // --- PHASE 6: AGENT 2 (VALIDATION) ---
                     loadingStatusText.textContent = `Agent 2 (${model2}): Validating Statistical Forecast...`;
                     const agent2_result = await agent2_validateForecast(ai, cleanedData, statisticalForecast, model2);
                     const aiValidatedForecastData = agent2_result.forecast;
@@ -511,7 +723,7 @@ const agent4_generateSummary = async (ai, cleanedData, forecastData, rationale, 
                     aiChartWrapper.classList.remove('hidden');
                     exportCsvBtn.classList.remove('hidden'); // Export button for AI-validated forecast
 
-                    // --- PHASE 5: AGENT 3 (RATIONALE) ---
+                    // --- PHASE 7: AGENT 3 (RATIONALE) ---
                     const agent3_result = await agent3_explainForecast(ai, cleanedData, aiValidatedForecastData, model3, language);
                     
                     // UI Update after Agent 3
@@ -519,15 +731,15 @@ const agent4_generateSummary = async (ai, cleanedData, forecastData, rationale, 
                     rationaleLoader.classList.add('hidden');
                     rationaleOutput.classList.remove('hidden');
 
-                    // --- PHASE 6: AGENT 4 (SUMMARY) ---
+                    // --- PHASE 8: AGENT 4 (SUMMARY) ---
                     const agent4_result = await agent4_generateSummary(ai, cleanedData, aiValidatedForecastData, agent3_result.rationale, model4, language);
                     
                     // UI Update after Agent 4
-                    summaryOutput.textContent = agent4_result.summary;
+                    summaryOutput.innerHTML = marked.parse(agent4_result.summary);
                     summaryLoader.classList.add('hidden');
                     summaryOutput.classList.remove('hidden');
 
-                    // --- PHASE 6: FINAL CLEANUP ---
+                    // --- PHASE 9: FINAL CLEANUP ---
                     uploadSection.classList.remove('hidden');
 
                 } catch (error) {
